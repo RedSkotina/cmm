@@ -4,11 +4,18 @@
 #include <Windows.h>
 
 DWORD gFreqOffset = 0;
-BOOL WINAPI myBeepHook(DWORD dwFreq, DWORD dwDuration)
+/*BOOL WINAPI myBeepHook(DWORD dwFreq, DWORD dwDuration)
 {
 	std::cout << "\n    BeepHook: ****All your beeps belong to us!\n\n";
 	return Beep(dwFreq + gFreqOffset, dwDuration);
 }
+*/
+
+BOOL WINAPI hReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped ) {
+    std::cout << "\n    hReadFile: ****All your reads belong to us!\n\n";
+    return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped );
+  };
 
 // EasyHook will be looking for this export to support DLL injection. If not found then 
 // DLL injection will fail.
@@ -36,12 +43,12 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 	HOOK_TRACE_INFO hHook = { NULL }; // keep track of our hook
 
 	std::cout << "\n";
-	std::cout << "Win32 Beep found at address: " << GetProcAddress(GetModuleHandle(TEXT("kernel32")), "Beep") << "\n";
+	std::cout << "Win32 ReadFile found at address: " << GetProcAddress(GetModuleHandle(TEXT("kernel32")), "ReadFile") << "\n";
 
 	// Install the hook
 	NTSTATUS result = LhInstallHook(
-		GetProcAddress(GetModuleHandle(TEXT("kernel32")), "Beep"),
-		myBeepHook,
+		GetProcAddress(GetModuleHandle(TEXT("kernel32")), "ReadFile"),
+		hReadFile,
 		NULL,
 		&hHook);
 	if (FAILED(result))
@@ -52,7 +59,7 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 	}
 	else 
 	{
-		std::cout << "Hook 'myBeepHook installed successfully.";
+		std::cout << "Hook 'ReadFile installed successfully.";
 	}
 
 	// If the threadId in the ACL is set to 0,
