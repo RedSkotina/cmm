@@ -1216,12 +1216,32 @@ static int DOKAN_CALLBACK UFSUnmount(PDOKAN_FILE_INFO apDokanFileInfo)
 	return 0;
 }
 
-int	wmain(int argc, LPWSTR argv[])
-{
-	int	status;
-	PDOKAN_OPERATIONS dokanOperations = (PDOKAN_OPERATIONS)malloc(sizeof(DOKAN_OPERATIONS));
+int installHooks() {
+	PDOKAN_OPERATIONS dokanOperations =
+		(PDOKAN_OPERATIONS)malloc(sizeof(DOKAN_OPERATIONS));
+	if (dokanOperations == NULL) {
+		return EXIT_FAILURE;
+	}
 	PDOKAN_OPTIONS dokanOptions = (PDOKAN_OPTIONS)malloc(sizeof(DOKAN_OPTIONS));
+	if (dokanOptions == NULL) {
+		free(dokanOperations);
+		return EXIT_FAILURE;
+	}
 
+	ZeroMemory(dokanOptions, sizeof(DOKAN_OPTIONS));
+	dokanOptions->Version = DOKAN_VERSION;
+	dokanOptions->ThreadCount = 0; // use default
+
+
+}
+int __cdecl wmain(ULONG argc, PWCHAR argv[]) {
+	int status;
+	ULONG command;
+	
+	int res = installHooks();
+	return res;
+
+	/*
 	if (argc < 7) {
 	printHelp:
 		fwprintf(stderr, L"WinUnionFS /r <ReadRoot>	/w <WriteRoot> /l <driveletter>	[<other	options>]\n"
@@ -1233,10 +1253,12 @@ int	wmain(int argc, LPWSTR argv[])
 			L"	/n (use	network	drive)\n"
 			L"	/m (use	removable drive)\n", *argv);
 		return 2;
-	}
+	}*/
 
-	ZeroMemory(dokanOptions, sizeof(DOKAN_OPTIONS));
-	dokanOptions->ThreadCount = 4; // use default
+	
+	//dokanOptions->ThreadCount = 4; // use default
+	
+
 	for (++argv; --argc; ++argv) {
 		switch (towupper((*argv)[1])) {
 		case 'R':
