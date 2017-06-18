@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <set>
 #include <string>
+#include <vector>
 using namespace	std;
 
 #include "dokan.h"
@@ -18,6 +19,7 @@ using namespace	std;
 #endif // DEBUG
 
 bool g_DebugMode = false;
+BOOL g_UseStdErr = true;
 BOOL g_HasSeSecurityPrivilege;
 
 static void DbgPrint(LPCWSTR format, ...) {
@@ -29,7 +31,7 @@ static void DbgPrint(LPCWSTR format, ...) {
 
 		va_start(argp, format);
 		length = _vscwprintf(format, argp) + 1;
-		buffer = _malloca(length * sizeof(WCHAR));
+		buffer = (WCHAR*)_malloca(length * sizeof(WCHAR));
 		if (buffer) {
 			vswprintf_s(buffer, length, format, argp);
 			outputString = buffer;
@@ -49,12 +51,43 @@ static void DbgPrint(LPCWSTR format, ...) {
 	}
 }
 
+std::vector<std::wstring> layer;
+
+static void GetUpperLayerFilePath(PWCHAR filePath, ULONG numberOfElements,
+	LPCWSTR FileName) {
+	wcsncpy_s(filePath, numberOfElements, layer.back().c_str(), wcslen(layer.back().c_str()));
+	wcsncat_s(filePath, numberOfElements, FileName, wcslen(FileName));
+}
+static void GetLayerFilePath(PWCHAR filePath, ULONG numberOfElements,
+	LPCWSTR FileName) {
+	int lidx = FindLayerForFile(FileName);
+	//if (!lidx)
+	wcsncpy_s(filePath, numberOfElements, layer[lidx].c_str(), wcslen(layer[lidx].c_str()));
+	wcsncat_s(filePath, numberOfElements, FileName, wcslen(FileName));
+}
+static int FindLayerForFile(LPCWSTR FileName) {
+	WIN32_FIND_DATAW find;
+	size_t idx = layer.size() - 1; 
+	for (auto it = layer.rbegin(); it != layer.rend(); ++it, --idx) {
+		ZeroMemory(&find, sizeof(WIN32_FIND_DATAW));
+		WCHAR filePath[DOKAN_MAX_PATH];
+		wcsncpy_s(filePath, DOKAN_MAX_PATH, (*it).c_str(), wcslen((*it).c_str()));
+		wcsncat_s(filePath, DOKAN_MAX_PATH, FileName, wcslen(FileName));
+		auto handle = FindFirstFile(filePath, &find);
+		if (handle != INVALID_HANDLE_VALUE) {
+			return idx;
+		}
+	}
+	DbgPrint(L"\tFindFirstFile error code =	%d\n\n", GetLastError());
+	return -1;
+}
+/*
 static void GetFilePath(PWCHAR filePath, ULONG numberOfElements,
 	LPCWSTR FileName) {
 	wcsncpy_s(filePath, numberOfElements, RootDirectory, wcslen(RootDirectory));
 	wcsncat_s(filePath, numberOfElements, FileName, wcslen(FileName));
 }
-
+*/
 static void PrintUserName(PDOKAN_FILE_INFO DokanFileInfo) {
 	HANDLE handle;
 	UCHAR buffer[1024];
@@ -128,7 +161,7 @@ PCreateFile(LPCWSTR FileName, PDOKAN_IO_SECURITY_CONTEXT SecurityContext,
 
 	genericDesiredAccess = DokanMapStandardToGenericAccess(DesiredAccess);
 
-	GetFilePath(filePath, DOKAN_MAX_PATH, FileName);
+	GetUpperLayerFilePath(filePath, DOKAN_MAX_PATH, FileName);
 
 	DbgPrint(L"CreateFile : %s\n", filePath);
 
@@ -364,7 +397,7 @@ int installHooks() {
 	
 	// install hooks
 	ZeroMemory(dokanOperations, sizeof(DOKAN_OPERATIONS));
-	dokanOperations->ZwCreateFile = MirrorCreateFile;
+	dokanOperations->ZwCreateFile = PCreateFile;
 	dokanOperations->Cleanup = MirrorCleanup;
 	dokanOperations->CloseFile = MirrorCloseFile;
 	dokanOperations->ReadFile = MirrorReadFile;
