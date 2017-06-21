@@ -66,7 +66,7 @@ static int FindLayerForFile(LPCWSTR FileName) {
 			return idx;
 		}
 	}
-	DbgPrint(L"\tFindFirstFile error code =	%d\n\n", GetLastError());
+	DbgPrint(L"FindLayerForFile: FindFirstFile error code =	%d\n\n", GetLastError());
 	return -1;
 }
 static void GetTopLayerFilePath(PWCHAR filePath, ULONG numberOfElements,
@@ -77,7 +77,7 @@ static void GetTopLayerFilePath(PWCHAR filePath, ULONG numberOfElements,
 static bool GetLayerFilePath(PWCHAR filePath, ULONG numberOfElements,
 	LPCWSTR FileName) {
 	int lidx = FindLayerForFile(FileName);
-	if (!lidx)
+	if (lidx < 0)
 		return false;
 	wcsncpy_s(filePath, numberOfElements, layer[lidx].c_str(), wcslen(layer[lidx].c_str()));
 	wcsncat_s(filePath, numberOfElements, FileName, wcslen(FileName));
@@ -1417,6 +1417,8 @@ static NTSTATUS DOKAN_CALLBACK PUnmounted(PDOKAN_FILE_INFO DokanFileInfo) {
 	return STATUS_SUCCESS;
 }
 
+static WCHAR MountPoint[DOKAN_MAX_PATH] = L"M:\\";
+
 int installHooks() {
 	int status;
 	PDOKAN_OPERATIONS dokanOperations =
@@ -1430,9 +1432,12 @@ int installHooks() {
 		return EXIT_FAILURE;
 	}
 
+	
 	ZeroMemory(dokanOptions, sizeof(DOKAN_OPTIONS));
 	dokanOptions->Version = DOKAN_VERSION;
 	dokanOptions->ThreadCount = 0; // use default
+	wcscpy_s(MountPoint, sizeof(MountPoint) / sizeof(WCHAR), L"e:\\code\\rpgcodex\\cmm.git\\tests\\data\\da");
+	dokanOptions->MountPoint = MountPoint;
 
 	g_DebugMode = true;
 
@@ -1449,16 +1454,13 @@ int installHooks() {
 		fwprintf(stderr, L"\t=> Please restart union sample with administrator "
 			L"rights to fix it\n");
 	}
-	/*
-	wcscpy(gReadRootDirectory, L"bar");
-	DbgPrint(L"ReadRootDirectory: %s\n", gWriteRootDirectory);
-	wcscpy(gWriteRootDirectory, L"bar");
-	DbgPrint(L"WriteRootDirectory: %s\n", gWriteRootDirectory);
-	*/
-	layer.push_back(L"bar");
+	
+	layer.push_back(L"e:\\code\\rpgcodex\\cmm.git\\tests\\data\\layer0");
 	DbgPrint(L"layer: %s\n", layer[0].c_str());
-	layer.push_back(L"foo");
+	layer.push_back(L"e:\\code\\rpgcodex\\cmm.git\\tests\\data\\layer1");
 	DbgPrint(L"layer: %s\n", layer[1].c_str());
+	layer.push_back(L"e:\\code\\rpgcodex\\cmm.git\\tests\\data\\layer2");
+	DbgPrint(L"layer: %s\n", layer[2].c_str());
 
 	// install hooks
 	ZeroMemory(dokanOperations, sizeof(DOKAN_OPERATIONS));
